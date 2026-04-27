@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/WIN 11/AppData/Local/Temp/claude/c--Users-WIN-11-Desktop----------timeln/15968309-058a-4301-b4dc-0cbce8c5a3ce/tasks/**)",
+      "Bash(node src/database/seed.js)",
+      "Bash(npm rebuild *)",
+      "Bash(npm list *)",
+      "Bash(node -e \"require\\('better-sqlite3'\\)\")",
+      "Bash(npm uninstall *)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(npm run *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\WIN 11\\Desktop\\��������\\timeln\\server\\node_modules"
+    ]
+  }
+}

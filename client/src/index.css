@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background-color: #0d1520;
+    color: #e2e8f0;
+    -webkit-font-smoothing: antialiased;
+    direction: rtl;
+  }
+  #root {
+    min-height: 100vh;
+    width: 100%;
+    text-align: right;
+  }
+  h1, h2, h3, h4 {
+    color: #f1f5f9;
+  }
+  input, select, textarea {
+    background-color: #1e2d42 !important;
+    border-color: #2a3f5c !important;
+    color: #e2e8f0 !important;
+    border-radius: 0.5rem !important;
+  }
+  input::placeholder, textarea::placeholder {
+    color: #607d9a !important;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: #2aa4ff !important;
+    box-shadow: 0 0 0 2px rgba(42,164,255,0.15) !important;
+    outline: none !important;
+  }
+  option {
+    background-color: #1e2d42;
+    color: #e2e8f0;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-dark-800 border border-dark-600 rounded-xl p-6;
+  }
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-500 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+  }
+  .btn-secondary {
+    @apply bg-dark-700 hover:bg-dark-600 text-dark-200 font-medium px-4 py-2 rounded-lg transition-colors border border-dark-500;
+  }
+  .btn-danger {
+    @apply bg-red-800 hover:bg-red-700 text-red-100 font-medium px-4 py-2 rounded-lg transition-colors;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .input-field {
+    @apply w-full bg-dark-700 border border-dark-500 text-dark-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500;
+  }
+  .table-row {
+    @apply border-b border-dark-700 hover:bg-dark-700/50 transition-colors;
+  }
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-dark-300 hover:text-white hover:bg-dark-700 transition-all;
+  }
+  .sidebar-link.active {
+    @apply bg-dark-700 text-white;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #141f30; }
+::-webkit-scrollbar-thumb { background: #2a3f5c; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3d5a7a; }
+
+/* Animations */
+@keyframes pulse-border {
+  0%, 100% { border-color: #2aa4ff; }
+  50% { border-color: #52c0ff; box-shadow: 0 0 8px rgba(42,164,255,0.4); }
+}
+.timer-active { animation: pulse-border 2s ease-in-out infinite; }
