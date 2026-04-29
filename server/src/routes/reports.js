@@ -150,7 +150,73 @@ router.get('/anomalies', authenticate, requireRole('manager', 'admin'), (req, re
     ORDER BY total DESC
   `).all(from, to);
 
-  res.json({ long_entries: longEntries, heavy_days: heavyDays });
+  // Users with zero entries in period
+  const noEntryUsers = db.prepare(`
+    SELECT u.id, u.full_name, u.team
+    FROM users u
+    WHERE u.is_active=1 AND u.role='employee'
+      AND u.id NOT IN (
+        SELECT DISTINCT user_id FROM time_entries WHERE date BETWEEN ? AND ?
+      )
+  `).all(from, to);
+
+  // Overlapping entries (same user, same day, overlapping times)
+  const overlaps = db.prepare(`
+    SELECT a.id as id_a, b.id as id_b,
+      u.full_name, a.date, a.start_time, a.end_time,
+      b.start_time as b_start, b.end_time as b_end
+    FROM time_entries a
+    JOIN time_entries b ON a.user_id=b.user_id AND a.date=b.date AND a.id < b.id
+    JOIN users u ON a.user_id=u.id
+    WHERE a.date BETWEEN ? AND ?
+      AND a.start_time IS NOT NULL AND a.end_time IS NOT NULL
+      AND b.start_time IS NOT NULL AND b.end_time IS NOT NULL
+      AND a.start_time < b.end_time AND a.end_time > b.start_time
+    ORDER BY a.date DESC
+    LIMIT 50
+  `).all(from, to);
+
+  res.json({ long_entries: longEntries, heavy_days: heavyDays, no_entry_users: noEntryUsers, overlaps });
+});
+
+// Drill-down: all entries for a specific user
+router.get('/drill/user/:userId', authenticate, requireRole('manager', 'admin'), (req, res) => {
+  const { date_from, date_to } = req.query;
+  const from = date_from || new Date(new Date().setDate(1)).toISOString().split('T')[0];
+  const to = date_to || new Date().toISOString().split('T')[0];
+
+  const entries = db.prepare(`
+    SELECT te.id, te.date, te.duration_minutes, te.start_time, te.end_time,
+      te.description, te.status, te.work_type, te.related_commit_ids,
+      p.project_name, t.task_name
+    FROM time_entries te
+    JOIN projects p ON te.project_id=p.id
+    LEFT JOIN tasks t ON te.task_id=t.id
+    WHERE te.user_id=? AND te.date BETWEEN ? AND ?
+    ORDER BY te.date DESC, te.start_time DESC
+  `).all(req.params.userId, from, to);
+
+  res.json(entries);
+});
+
+// Drill-down: all entries for a specific project
+router.get('/drill/project/:projectId', authenticate, requireRole('manager', 'admin'), (req, res) => {
+  const { date_from, date_to } = req.query;
+  const from = date_from || new Date(new Date().setDate(1)).toISOString().split('T')[0];
+  const to = date_to || new Date().toISOString().split('T')[0];
+
+  const entries = db.prepare(`
+    SELECT te.id, te.date, te.duration_minutes, te.start_time, te.end_time,
+      te.description, te.status, te.work_type,
+      u.full_name as user_name, t.task_name
+    FROM time_entries te
+    JOIN users u ON te.user_id=u.id
+    LEFT JOIN tasks t ON te.task_id=t.id
+    WHERE te.project_id=? AND te.date BETWEEN ? AND ?
+    ORDER BY te.date DESC, te.start_time DESC
+  `).all(req.params.projectId, from, to);
+
+  res.json(entries);
 });
 
 module.exports = router;
