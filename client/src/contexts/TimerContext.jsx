@@ -4,6 +4,13 @@ import { useAuth } from './AuthContext';
 
 const TimerContext = createContext(null);
 
+// SQLite datetime('now') returns UTC without 'Z' — parse as UTC explicitly
+function parseUtcDate(str) {
+  if (!str) return new Date();
+  if (str.includes('Z') || str.includes('+')) return new Date(str);
+  return new Date(str.replace(' ', 'T') + 'Z');
+}
+
 export function TimerProvider({ children }) {
   const { user } = useAuth();
   const [activeTimer, setActiveTimer] = useState(null);
@@ -25,17 +32,18 @@ export function TimerProvider({ children }) {
   useEffect(() => {
     if (activeTimer && !activeTimer.paused_at) {
       intervalRef.current = setInterval(() => {
-        const started = new Date(activeTimer.started_at);
-        const paused = activeTimer.paused_duration_minutes * 60;
-        const secs = Math.floor((Date.now() - started) / 1000) - paused;
+        const started = parseUtcDate(activeTimer.started_at);
+        const pausedSecs = (activeTimer.paused_duration_minutes || 0) * 60;
+        const secs = Math.floor((Date.now() - started.getTime()) / 1000) - pausedSecs;
         setElapsed(Math.max(0, secs));
       }, 1000);
     } else {
       clearInterval(intervalRef.current);
       if (activeTimer?.paused_at) {
-        const started = new Date(activeTimer.started_at);
-        const paused = activeTimer.paused_duration_minutes * 60;
-        setElapsed(Math.max(0, Math.floor((new Date(activeTimer.paused_at) - started) / 1000) - paused));
+        const started = parseUtcDate(activeTimer.started_at);
+        const pausedAt = parseUtcDate(activeTimer.paused_at);
+        const pausedSecs = (activeTimer.paused_duration_minutes || 0) * 60;
+        setElapsed(Math.max(0, Math.floor((pausedAt.getTime() - started.getTime()) / 1000) - pausedSecs));
       } else {
         setElapsed(0);
       }
@@ -46,6 +54,7 @@ export function TimerProvider({ children }) {
   const startTimer = async (project_id, task_id, description) => {
     const { data } = await api.post('/time-entries/timer/start', { project_id, task_id, description });
     setActiveTimer(data);
+    setElapsed(0);
   };
 
   const stopTimer = async (extra = {}) => {
