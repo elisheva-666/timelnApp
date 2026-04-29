@@ -46,7 +46,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* By User */}
         <div className="card">
-          <h3 className="text-white font-semibold mb-4">שעות לפי עובד</h3>
+          <h3 className="text-dark-50 font-semibold mb-4">שעות לפי עובד</h3>
           <div className="space-y-3">
             {overview?.by_user?.length === 0 && <p className="text-dark-500 text-sm">אין נתונים</p>}
             {overview?.by_user?.map(u => {
@@ -55,12 +55,12 @@ export default function AdminDashboard() {
                 <div key={u.id}>
                   <div className="flex justify-between items-center text-sm mb-1">
                     <div>
-                      <span className="text-white">{u.full_name}</span>
+                      <span className="text-dark-50">{u.full_name}</span>
                       {u.team && <span className="text-dark-500 text-xs mr-2">({u.team})</span>}
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-dark-500 text-xs">{u.entry_count} דיווחים</span>
-                      <span className="text-brand-400 font-mono font-medium w-16 text-left">{formatMinutes(u.total_minutes)}</span>
+                      <span className="text-brand-600 font-mono font-medium w-16 text-left">{formatMinutes(u.total_minutes)}</span>
                     </div>
                   </div>
                   <div className="h-1.5 bg-dark-700 rounded-full overflow-hidden">
@@ -74,7 +74,7 @@ export default function AdminDashboard() {
 
         {/* By Project */}
         <div className="card">
-          <h3 className="text-white font-semibold mb-4">שעות לפי פרויקט</h3>
+          <h3 className="text-dark-50 font-semibold mb-4">שעות לפי פרויקט</h3>
           <div className="space-y-3">
             {overview?.by_project?.length === 0 && <p className="text-dark-500 text-sm">אין נתונים</p>}
             {overview?.by_project?.map(p => {
@@ -83,10 +83,10 @@ export default function AdminDashboard() {
                 <div key={p.id}>
                   <div className="flex justify-between items-center text-sm mb-1">
                     <div>
-                      <span className="text-white">{p.project_name}</span>
+                      <span className="text-dark-50">{p.project_name}</span>
                       <span className="text-dark-500 text-xs mr-2">({p.user_count} עובדים)</span>
                     </div>
-                    <span className="text-brand-400 font-mono font-medium w-16 text-left">{formatMinutes(p.total_minutes)}</span>
+                    <span className="text-brand-600 font-mono font-medium w-16 text-left">{formatMinutes(p.total_minutes)}</span>
                   </div>
                   <div className="h-1.5 bg-dark-700 rounded-full overflow-hidden">
                     <div className="h-full bg-teal-500 rounded-full" style={{ width: `${(p.total_minutes / max) * 100}%` }} />
