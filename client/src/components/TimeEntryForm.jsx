@@ -96,11 +96,11 @@ export default function TimeEntryForm({ initial, onSuccess, onCancel }) {
       <div>
         <div className="flex gap-2 mb-3">
           <button type="button" onClick={() => setInputMode('times')}
-            className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${inputMode === 'times' ? 'bg-brand-600 text-white' : 'bg-dark-700 text-dark-400 hover:text-white'}`}>
+            className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${inputMode === 'times' ? 'bg-brand-600 text-white' : 'bg-dark-700 text-dark-400 hover:text-dark-100'}`}>
             שעת התחלה/סיום
           </button>
           <button type="button" onClick={() => setInputMode('duration')}
-            className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${inputMode === 'duration' ? 'bg-brand-600 text-white' : 'bg-dark-700 text-dark-400 hover:text-white'}`}>
+            className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${inputMode === 'duration' ? 'bg-brand-600 text-white' : 'bg-dark-700 text-dark-400 hover:text-dark-100'}`}>
             משך זמן
           </button>
         </div>
@@ -127,7 +127,7 @@ export default function TimeEntryForm({ initial, onSuccess, onCancel }) {
       </div>
 
       {overlap && (
-        <div className="p-3 bg-red-900/30 border border-red-600/40 rounded-lg text-red-300 text-sm">
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           ⚠️ קיימת חפיפה עם דיווח אחר בתאריך ושעה אלה. אנא בדוק את הזמנים.
         </div>
       )}
