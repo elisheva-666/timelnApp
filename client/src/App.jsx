@@ -18,7 +18,7 @@ function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
   if (loading) return (
     <div className="min-h-screen bg-dark-950 flex items-center justify-center">
-      <div className="text-dark-400">טוען...</div>
+      <div className="text-dark-500">טוען...</div>
     </div>
   );
   if (!user) return <Navigate to="/login" replace />;
@@ -76,9 +76,9 @@ export default function App() {
           <Toaster
             position="bottom-left"
             toastOptions={{
-              style: { background: '#1e2d42', color: '#e2e8f0', border: '1px solid #2a3f5c' },
-              success: { iconTheme: { primary: '#34d399', secondary: '#1e2d42' } },
-              error: { iconTheme: { primary: '#f87171', secondary: '#1e2d42' } },
+              style: { background: '#ffffff', color: '#334155', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' },
+              success: { iconTheme: { primary: '#16a34a', secondary: '#ffffff' } },
+              error: { iconTheme: { primary: '#dc2626', secondary: '#ffffff' } },
             }}
           />
         </TimerProvider>

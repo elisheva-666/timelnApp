@@ -7,23 +7,27 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Inverted scale: higher numbers = lighter (for light theme)
         dark: {
-          50:  '#f0f4ff',
-          100: '#e0e9ff',
-          200: '#c0cfe0',
-          300: '#8fa6c0',
-          400: '#607d9a',
-          500: '#3d5a7a',
-          600: '#2a3f5c',
-          700: '#1e2d42',
-          800: '#141f30',
-          900: '#0d1520',
-          950: '#080e18',
+          50:  '#0f172a',  // near-black (headings)
+          100: '#1e293b',  // very dark text
+          200: '#334155',  // dark body text
+          300: '#475569',  // medium text (labels, sidebar)
+          400: '#64748b',  // secondary text
+          500: '#94a3b8',  // muted / placeholder
+          600: '#cbd5e1',  // light borders
+          700: '#e2e8f0',  // dividers / light hover bg
+          800: '#ffffff',  // card / white background
+          900: '#f1f5f9',  // sidebar / panel bg
+          950: '#f8fafc',  // page background
         },
         brand: {
-          400: '#52c0ff',
-          500: '#2aa4ff',
-          600: '#1485f5',
+          50:  '#eff6ff',
+          100: '#dbeafe',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
         },
       }
     },
@@ -32,4 +36,3 @@ export default {
     require('@tailwindcss/forms'),
   ],
 }
-
