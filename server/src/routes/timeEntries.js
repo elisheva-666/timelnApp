@@ -110,7 +110,7 @@ router.post('/', authenticate, (req, res) => {
     JOIN projects p ON te.project_id = p.id
     LEFT JOIN tasks t ON te.task_id = t.id
     WHERE te.id = ?
-  `).get(result.lastInsertRowid);
+  `).get(Number(result.lastInsertRowid));
 
   res.status(201).json(entry);
 });
@@ -207,28 +207,26 @@ router.post('/timer/stop', authenticate, (req, res) => {
   if (!timer) return res.status(404).json({ error: 'No active timer' });
 
   const now = new Date();
-  const started = new Date(timer.started_at);
+  const started = new Date(timer.started_at.replace(' ', 'T') + 'Z');
   const totalMs = now - started;
   const pausedMs = timer.paused_duration_minutes * 60 * 1000;
-  const activeMins = Math.round((totalMs - pausedMs) / 60000);
+  const activeMins = Math.max(1, Math.ceil((totalMs - pausedMs) / 60000));
 
-  if (activeMins <= 0) {
-    db.prepare('DELETE FROM active_timers WHERE user_id = ?').run(req.user.id);
-    return res.status(400).json({ error: 'No time recorded' });
-  }
+  // Local date (not UTC) so midnight in Israel gives correct date
+  const pad = n => String(n).padStart(2, '0');
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const startStr = `${pad(started.getHours())}:${pad(started.getMinutes())}`;
+  const endStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-  const today = now.toISOString().split('T')[0];
-  const startStr = started.toTimeString().slice(0, 5);
-  const endStr = now.toTimeString().slice(0, 5);
-
-  const { description, related_commit_ids, related_clickup_task_id } = req.body || {};
+  const { description, related_commit_ids, related_clickup_task_id, status } = req.body || {};
+  const entryStatus = (status === 'draft' || status === 'submitted') ? status : 'submitted';
 
   const result = db.prepare(`
     INSERT INTO time_entries (user_id, project_id, task_id, date, start_time, end_time, duration_minutes, description, source, status, related_commit_ids, related_clickup_task_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'timer', 'submitted', ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'timer', ?, ?, ?)
   `).run(
     req.user.id, timer.project_id, timer.task_id, today, startStr, endStr, activeMins,
-    description || timer.description || null,
+    description || timer.description || null, entryStatus,
     related_commit_ids || null, related_clickup_task_id || null
   );
 
@@ -238,7 +236,7 @@ router.post('/timer/stop', authenticate, (req, res) => {
     SELECT te.*, u.full_name as user_name, p.project_name, t.task_name
     FROM time_entries te JOIN users u ON te.user_id=u.id JOIN projects p ON te.project_id=p.id
     LEFT JOIN tasks t ON te.task_id=t.id WHERE te.id=?
-  `).get(result.lastInsertRowid);
+  `).get(Number(result.lastInsertRowid));
 
   res.json({ entry, duration_minutes: activeMins });
 });
@@ -259,7 +257,7 @@ router.post('/timer/resume', authenticate, (req, res) => {
   if (!timer) return res.status(404).json({ error: 'No active timer' });
   if (!timer.paused_at) return res.status(409).json({ error: 'Timer not paused' });
 
-  const pausedAt = new Date(timer.paused_at);
+  const pausedAt = new Date(timer.paused_at.replace(' ', 'T') + 'Z');
   const addedMins = Math.round((new Date() - pausedAt) / 60000);
 
   db.prepare('UPDATE active_timers SET paused_duration_minutes=?, paused_at=NULL WHERE user_id=?')
