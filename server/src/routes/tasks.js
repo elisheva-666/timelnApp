@@ -45,7 +45,7 @@ router.post('/', authenticate, requireRole('manager', 'admin'), (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(task_name, description || null, project_id, assigned_user_id || null, status || 'new', priority || 'medium', clickup_task_id || null, estimated_hours || null, due_date || null);
 
-  res.status(201).json(db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid));
+  res.status(201).json(db.prepare('SELECT * FROM tasks WHERE id = ?').get(Number(result.lastInsertRowid)));
 });
 
 router.put('/:id', authenticate, requireRole('manager', 'admin'), (req, res) => {

@@ -2,8 +2,12 @@ const db = require('./db');
 
 function initializeSchema() {
   db.exec(`
-    PRAGMA journal_mode=WAL;
-    PRAGMA foreign_keys=ON;
+    CREATE TABLE IF NOT EXISTS organizations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      slug TEXT UNIQUE NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
 
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,6 +80,16 @@ function initializeSchema() {
       description TEXT
     );
   `);
+  // Safe migrations: add org_id columns to existing tables
+  try { db.exec('ALTER TABLE users ADD COLUMN org_id INTEGER REFERENCES organizations(id)'); } catch {}
+  try { db.exec('ALTER TABLE projects ADD COLUMN org_id INTEGER REFERENCES organizations(id)'); } catch {}
+
+  // Ensure default organization exists
+  const existing = db.prepare('SELECT id FROM organizations LIMIT 1').get();
+  if (!existing) {
+    db.prepare("INSERT INTO organizations (name, slug) VALUES ('Default Organization', 'default')").run();
+  }
+
   console.log('Database schema initialized');
 }
 

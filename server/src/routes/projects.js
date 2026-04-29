@@ -34,7 +34,7 @@ router.post('/', authenticate, requireRole('manager', 'admin'), (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(project_name, description || null, status || 'active', manager_id || null, external_clickup_list_id || null, git_repository_name || null, git_repository_url || null);
 
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(result.lastInsertRowid);
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(Number(result.lastInsertRowid));
   res.status(201).json(project);
 });
 

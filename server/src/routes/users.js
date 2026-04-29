@@ -38,7 +38,7 @@ router.post('/', authenticate, requireRole('admin'), (req, res) => {
     INSERT INTO users (full_name, email, password_hash, role, team) VALUES (?, ?, ?, ?, ?)
   `).run(full_name, email, hash, role || 'employee', team || null);
 
-  const user = db.prepare('SELECT id, full_name, email, role, team, is_active FROM users WHERE id = ?').get(result.lastInsertRowid);
+  const user = db.prepare('SELECT id, full_name, email, role, team, is_active FROM users WHERE id = ?').get(Number(result.lastInsertRowid));
   res.status(201).json(user);
 });
 
