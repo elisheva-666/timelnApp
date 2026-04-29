@@ -144,9 +144,9 @@ export default function TimeEntries() {
             {entries.map(e => (
               <tr key={e.id} className="table-row">
                 <td className="px-5 py-3 text-dark-300">{formatDate(e.date)}</td>
-                <td className="px-4 py-3 text-white font-medium">{e.project_name}</td>
+                <td className="px-4 py-3 text-dark-100 font-medium">{e.project_name}</td>
                 <td className="px-4 py-3 text-dark-300">{e.task_name || <span className="text-dark-600">—</span>}</td>
-                <td className="px-4 py-3 text-brand-400 font-mono font-medium">{formatMinutes(e.duration_minutes)}</td>
+                <td className="px-4 py-3 text-brand-600 font-mono font-medium">{formatMinutes(e.duration_minutes)}</td>
                 <td className="px-4 py-3 text-dark-400 font-mono text-xs">
                   {e.start_time && e.end_time ? `${e.start_time}–${e.end_time}` : '—'}
                 </td>
@@ -155,15 +155,15 @@ export default function TimeEntries() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
                     <button onClick={() => { setEditEntry(e); setModalOpen(true); }}
-                      className="p-1.5 text-dark-500 hover:text-brand-400 hover:bg-dark-700 rounded transition-colors" title="ערוך">
+                      className="p-1.5 text-dark-500 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors" title="ערוך">
                       <Pencil size={14} />
                     </button>
                     <button onClick={() => handleDuplicate(e)}
-                      className="p-1.5 text-dark-500 hover:text-brand-400 hover:bg-dark-700 rounded transition-colors" title="שכפל">
+                      className="p-1.5 text-dark-500 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors" title="שכפל">
                       <Copy size={14} />
                     </button>
                     <button onClick={() => handleDelete(e.id)}
-                      className="p-1.5 text-dark-500 hover:text-red-400 hover:bg-dark-700 rounded transition-colors" title="מחק">
+                      className="p-1.5 text-dark-500 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="מחק">
                       <Trash2 size={14} />
                     </button>
                   </div>

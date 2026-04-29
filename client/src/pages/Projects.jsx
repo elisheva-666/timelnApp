@@ -103,14 +103,14 @@ export default function Projects() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {projects.map(p => (
-          <div key={p.id} className="card hover:border-dark-500 transition-colors group">
+          <div key={p.id} className="card hover:border-brand-300 hover:shadow-md transition-all group">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-brand-600/10 rounded-lg">
                   <FolderOpen size={18} className="text-brand-400" />
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold">{p.project_name}</h3>
+                  <h3 className="text-dark-50 font-semibold">{p.project_name}</h3>
                   {p.manager_name && <p className="text-dark-400 text-xs">{p.manager_name}</p>}
                 </div>
               </div>
@@ -128,7 +128,7 @@ export default function Projects() {
             </div>
             {isManager && (
               <button onClick={() => { setEditProject(p); setModalOpen(true); }}
-                className="mt-3 text-dark-500 hover:text-brand-400 transition-colors text-xs flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                className="mt-3 text-dark-500 hover:text-brand-600 transition-colors text-xs flex items-center gap-1 opacity-0 group-hover:opacity-100">
                 <Pencil size={12} /> ערוך
               </button>
             )}

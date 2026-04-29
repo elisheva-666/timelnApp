@@ -177,7 +177,7 @@ export default function Tasks() {
               <div className="flex items-center gap-3 flex-wrap">
                 <StatusBadge status={t.status} />
                 <StatusBadge status={t.priority} />
-                <h3 className="text-white font-medium">{t.task_name}</h3>
+                <h3 className="text-dark-50 font-medium">{t.task_name}</h3>
               </div>
               <div className="flex items-center gap-4 mt-1.5 text-xs text-dark-500 flex-wrap">
                 <span className="text-dark-400">{t.project_name}</span>
@@ -191,11 +191,11 @@ export default function Tasks() {
             {isManager && (
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                 <button onClick={() => { setEditTask(t); setModalOpen(true); }}
-                  className="p-1.5 text-dark-500 hover:text-brand-400 hover:bg-dark-700 rounded transition-colors" title="ערוך">
+                  className="p-1.5 text-dark-500 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors" title="ערוך">
                   <Pencil size={14} />
                 </button>
                 <button onClick={() => handleDelete(t.id)}
-                  className="p-1.5 text-dark-500 hover:text-red-400 hover:bg-dark-700 rounded transition-colors" title="מחק">
+                  className="p-1.5 text-dark-500 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="מחק">
                   <Trash2 size={14} />
                 </button>
               </div>
