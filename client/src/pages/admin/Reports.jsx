@@ -8,8 +8,6 @@ import PageHeader from '../../components/PageHeader';
 import StatusBadge from '../../components/StatusBadge';
 import { formatDate, formatMinutes, monthStartStr, todayStr } from '../../utils/format';
 import { Download, AlertTriangle, ChevronDown, ChevronUp, Users, FolderOpen, X, BarChart2, FileText } from 'lucide-react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 const CHART_COLORS = ['#2563eb','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#be185d','#65a30d'];
 
@@ -141,6 +139,7 @@ export default function Reports() {
   const exportPDF = async () => {
     setPdfLoading(true);
     try {
+      const { default: jsPDF } = await import('jspdf');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const pageW = pdf.internal.pageSize.getWidth();
 
