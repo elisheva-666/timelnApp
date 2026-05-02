@@ -6,7 +6,7 @@ services:
     plan: free
     rootDir: server
     buildCommand: npm install
-    startCommand: node --experimental-sqlite src/index.js
+    startCommand: node src/index.js
     envVars:
       - key: NODE_ENV
         value: production
