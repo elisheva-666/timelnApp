@@ -1,7 +1,7 @@
 const db = require('./db');
 
-function initializeSchema() {
-  db.exec(`
+async function initializeSchema() {
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS organizations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -11,6 +11,7 @@ function initializeSchema() {
 
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      org_id INTEGER REFERENCES organizations(id),
       full_name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
@@ -23,6 +24,7 @@ function initializeSchema() {
 
     CREATE TABLE IF NOT EXISTS projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      org_id INTEGER REFERENCES organizations(id),
       project_name TEXT NOT NULL,
       description TEXT,
       status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','inactive','archived')),
@@ -80,17 +82,23 @@ function initializeSchema() {
       description TEXT
     );
   `);
-  // Safe migrations: add org_id columns to existing tables
-  try { db.exec('ALTER TABLE users ADD COLUMN org_id INTEGER REFERENCES organizations(id)'); } catch {}
-  try { db.exec('ALTER TABLE projects ADD COLUMN org_id INTEGER REFERENCES organizations(id)'); } catch {}
 
-  // Ensure default organization exists
-  const existing = db.prepare('SELECT id FROM organizations LIMIT 1').get();
-  if (!existing) {
-    db.prepare("INSERT INTO organizations (name, slug) VALUES ('Default Organization', 'default')").run();
+  // Safe migrations for existing DBs (adding org_id if missing)
+  const migrations = [
+    "ALTER TABLE users ADD COLUMN org_id INTEGER REFERENCES organizations(id)",
+    "ALTER TABLE projects ADD COLUMN org_id INTEGER REFERENCES organizations(id)",
+  ];
+  for (const sql of migrations) {
+    try { await db.exec(sql); } catch {}
   }
 
-  console.log('Database schema initialized');
+  // Ensure default org exists
+  const existing = await db.prepare('SELECT id FROM organizations LIMIT 1').get();
+  if (!existing) {
+    await db.prepare("INSERT INTO organizations (name, slug) VALUES (?, ?)").run('Default Organization', 'default');
+  }
+
+  console.log(`Database schema ready (${db.isPostgres ? 'PostgreSQL' : 'SQLite'})`);
 }
 
 module.exports = { initializeSchema };

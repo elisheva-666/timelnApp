@@ -4,7 +4,7 @@ const { authenticate, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
-function checkOverlap(userId, date, startTime, endTime, excludeId = null) {
+async function checkOverlap(userId, date, startTime, endTime, excludeId = null) {
   if (!startTime || !endTime) return false;
   let query = `
     SELECT id FROM time_entries
@@ -13,288 +13,310 @@ function checkOverlap(userId, date, startTime, endTime, excludeId = null) {
   `;
   const params = [userId, date, endTime, startTime];
   if (excludeId) { query += ' AND id != ?'; params.push(excludeId); }
-  return db.prepare(query).get(...params) !== undefined;
+  return (await db.prepare(query).get(...params)) !== null;
 }
 
 // GET time entries
-router.get('/', authenticate, (req, res) => {
-  const { user_id, project_id, task_id, date_from, date_to, status } = req.query;
+router.get('/', authenticate, async (req, res) => {
+  try {
+    const { user_id, project_id, task_id, date_from, date_to, status } = req.query;
 
-  let query = `
-    SELECT te.*, u.full_name as user_name, p.project_name, t.task_name
-    FROM time_entries te
-    JOIN users u ON te.user_id = u.id
-    JOIN projects p ON te.project_id = p.id
-    LEFT JOIN tasks t ON te.task_id = t.id
-    WHERE 1=1
-  `;
-  const params = [];
+    let query = `
+      SELECT te.*, u.full_name as user_name, p.project_name, t.task_name
+      FROM time_entries te
+      JOIN users u ON te.user_id = u.id
+      JOIN projects p ON te.project_id = p.id
+      LEFT JOIN tasks t ON te.task_id = t.id
+      WHERE 1=1
+    `;
+    const params = [];
 
-  // Permission filter
-  if (req.user.role === 'employee') {
-    query += ' AND te.user_id = ?';
-    params.push(req.user.id);
-  } else if (user_id) {
-    query += ' AND te.user_id = ?';
-    params.push(user_id);
-  }
+    if (req.user.role === 'employee') {
+      query += ' AND te.user_id = ?';
+      params.push(req.user.id);
+    } else if (user_id) {
+      query += ' AND te.user_id = ?';
+      params.push(user_id);
+    }
 
-  if (project_id) { query += ' AND te.project_id = ?'; params.push(project_id); }
-  if (task_id) { query += ' AND te.task_id = ?'; params.push(task_id); }
-  if (date_from) { query += ' AND te.date >= ?'; params.push(date_from); }
-  if (date_to) { query += ' AND te.date <= ?'; params.push(date_to); }
-  if (status) { query += ' AND te.status = ?'; params.push(status); }
+    if (project_id) { query += ' AND te.project_id = ?'; params.push(project_id); }
+    if (task_id)    { query += ' AND te.task_id = ?';    params.push(task_id); }
+    if (date_from)  { query += ' AND te.date >= ?';      params.push(date_from); }
+    if (date_to)    { query += ' AND te.date <= ?';      params.push(date_to); }
+    if (status)     { query += ' AND te.status = ?';     params.push(status); }
 
-  query += ' ORDER BY te.date DESC, te.start_time DESC';
-  res.json(db.prepare(query).all(...params));
+    query += ' ORDER BY te.date DESC, te.start_time DESC';
+    res.json(await db.prepare(query).all(...params));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // GET single entry
-router.get('/:id', authenticate, (req, res) => {
-  const entry = db.prepare(`
-    SELECT te.*, u.full_name as user_name, p.project_name, t.task_name
-    FROM time_entries te
-    JOIN users u ON te.user_id = u.id
-    JOIN projects p ON te.project_id = p.id
-    LEFT JOIN tasks t ON te.task_id = t.id
-    WHERE te.id = ?
-  `).get(req.params.id);
+router.get('/:id', authenticate, async (req, res) => {
+  try {
+    const entry = await db.prepare(`
+      SELECT te.*, u.full_name as user_name, p.project_name, t.task_name
+      FROM time_entries te
+      JOIN users u ON te.user_id = u.id
+      JOIN projects p ON te.project_id = p.id
+      LEFT JOIN tasks t ON te.task_id = t.id
+      WHERE te.id = ?
+    `).get(req.params.id);
 
-  if (!entry) return res.status(404).json({ error: 'Entry not found' });
-  if (req.user.role === 'employee' && entry.user_id !== req.user.id) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  res.json(entry);
+    if (!entry) return res.status(404).json({ error: 'Entry not found' });
+    if (req.user.role === 'employee' && entry.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    res.json(entry);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // POST create entry
-router.post('/', authenticate, (req, res) => {
-  const { project_id, task_id, date, start_time, end_time, duration_minutes, work_type, description, source, status, related_commit_ids, related_clickup_task_id } = req.body;
+router.post('/', authenticate, async (req, res) => {
+  try {
+    const { project_id, task_id, date, start_time, end_time, duration_minutes, work_type, description, source, status, related_commit_ids, related_clickup_task_id } = req.body;
 
-  if (!project_id || !date) {
-    return res.status(400).json({ error: 'project_id and date are required' });
-  }
+    if (!project_id || !date) {
+      return res.status(400).json({ error: 'project_id and date are required' });
+    }
 
-  let duration = duration_minutes;
-  if (!duration && start_time && end_time) {
-    const [sh, sm] = start_time.split(':').map(Number);
-    const [eh, em] = end_time.split(':').map(Number);
-    duration = (eh * 60 + em) - (sh * 60 + sm);
-  }
+    let duration = duration_minutes;
+    if (!duration && start_time && end_time) {
+      const [sh, sm] = start_time.split(':').map(Number);
+      const [eh, em] = end_time.split(':').map(Number);
+      duration = (eh * 60 + em) - (sh * 60 + sm);
+    }
 
-  if (!duration || duration <= 0) {
-    return res.status(400).json({ error: 'Duration must be positive. Check start/end times.' });
-  }
+    if (!duration || duration <= 0) {
+      return res.status(400).json({ error: 'Duration must be positive. Check start/end times.' });
+    }
 
-  const userId = req.user.role !== 'employee' && req.body.user_id ? req.body.user_id : req.user.id;
+    const userId = req.user.role !== 'employee' && req.body.user_id ? req.body.user_id : req.user.id;
 
-  if (checkOverlap(userId, date, start_time, end_time)) {
-    return res.status(409).json({ error: 'Time overlap detected with existing entry', overlap: true });
-  }
+    if (await checkOverlap(userId, date, start_time, end_time)) {
+      return res.status(409).json({ error: 'Time overlap detected with existing entry', overlap: true });
+    }
 
-  const result = db.prepare(`
-    INSERT INTO time_entries (user_id, project_id, task_id, date, start_time, end_time, duration_minutes, work_type, description, source, status, related_commit_ids, related_clickup_task_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    userId, project_id, task_id || null, date,
-    start_time || null, end_time || null, duration,
-    work_type || 'development', description || null,
-    source || 'manual', status || 'submitted',
-    related_commit_ids || null, related_clickup_task_id || null
-  );
+    const result = await db.prepare(`
+      INSERT INTO time_entries (user_id, project_id, task_id, date, start_time, end_time, duration_minutes, work_type, description, source, status, related_commit_ids, related_clickup_task_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      userId, project_id, task_id || null, date,
+      start_time || null, end_time || null, duration,
+      work_type || 'development', description || null,
+      source || 'manual', status || 'submitted',
+      related_commit_ids || null, related_clickup_task_id || null
+    );
 
-  const entry = db.prepare(`
-    SELECT te.*, u.full_name as user_name, p.project_name, t.task_name
-    FROM time_entries te
-    JOIN users u ON te.user_id = u.id
-    JOIN projects p ON te.project_id = p.id
-    LEFT JOIN tasks t ON te.task_id = t.id
-    WHERE te.id = ?
-  `).get(Number(result.lastInsertRowid));
+    const entry = await db.prepare(`
+      SELECT te.*, u.full_name as user_name, p.project_name, t.task_name
+      FROM time_entries te
+      JOIN users u ON te.user_id = u.id
+      JOIN projects p ON te.project_id = p.id
+      LEFT JOIN tasks t ON te.task_id = t.id
+      WHERE te.id = ?
+    `).get(Number(result.lastInsertRowid));
 
-  res.status(201).json(entry);
+    res.status(201).json(entry);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // PUT update entry
-router.put('/:id', authenticate, (req, res) => {
-  const id = parseInt(req.params.id);
-  const entry = db.prepare('SELECT * FROM time_entries WHERE id = ?').get(id);
-  if (!entry) return res.status(404).json({ error: 'Entry not found' });
-  if (req.user.role === 'employee' && entry.user_id !== req.user.id) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
+router.put('/:id', authenticate, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const entry = await db.prepare('SELECT * FROM time_entries WHERE id = ?').get(id);
+    if (!entry) return res.status(404).json({ error: 'Entry not found' });
+    if (req.user.role === 'employee' && entry.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
-  const { project_id, task_id, date, start_time, end_time, duration_minutes, work_type, description, source, status, related_commit_ids, related_clickup_task_id } = req.body;
+    const { project_id, task_id, date, start_time, end_time, duration_minutes, work_type, description, source, status, related_commit_ids, related_clickup_task_id } = req.body;
 
-  const newDate = date || entry.date;
-  const newStart = start_time !== undefined ? start_time : entry.start_time;
-  const newEnd = end_time !== undefined ? end_time : entry.end_time;
+    const newDate  = date       || entry.date;
+    const newStart = start_time !== undefined ? start_time : entry.start_time;
+    const newEnd   = end_time   !== undefined ? end_time   : entry.end_time;
 
-  let duration = duration_minutes || entry.duration_minutes;
-  if (newStart && newEnd && (start_time || end_time)) {
-    const [sh, sm] = newStart.split(':').map(Number);
-    const [eh, em] = newEnd.split(':').map(Number);
-    const calc = (eh * 60 + em) - (sh * 60 + sm);
-    if (calc > 0) duration = calc;
-  }
+    let duration = duration_minutes || entry.duration_minutes;
+    if (newStart && newEnd && (start_time || end_time)) {
+      const [sh, sm] = newStart.split(':').map(Number);
+      const [eh, em] = newEnd.split(':').map(Number);
+      const calc = (eh * 60 + em) - (sh * 60 + sm);
+      if (calc > 0) duration = calc;
+    }
 
-  if (duration <= 0) {
-    return res.status(400).json({ error: 'Duration must be positive' });
-  }
+    if (duration <= 0) {
+      return res.status(400).json({ error: 'Duration must be positive' });
+    }
 
-  if (checkOverlap(entry.user_id, newDate, newStart, newEnd, id)) {
-    return res.status(409).json({ error: 'Time overlap detected', overlap: true });
-  }
+    if (await checkOverlap(entry.user_id, newDate, newStart, newEnd, id)) {
+      return res.status(409).json({ error: 'Time overlap detected', overlap: true });
+    }
 
-  db.prepare(`
-    UPDATE time_entries SET project_id=?, task_id=?, date=?, start_time=?, end_time=?,
-      duration_minutes=?, work_type=?, description=?, source=?, status=?,
-      related_commit_ids=?, related_clickup_task_id=?, updated_at=datetime('now')
-    WHERE id=?
-  `).run(
-    project_id || entry.project_id,
-    task_id !== undefined ? task_id : entry.task_id,
-    newDate, newStart, newEnd, duration,
-    work_type || entry.work_type,
-    description !== undefined ? description : entry.description,
-    source || entry.source,
-    status || entry.status,
-    related_commit_ids !== undefined ? related_commit_ids : entry.related_commit_ids,
-    related_clickup_task_id !== undefined ? related_clickup_task_id : entry.related_clickup_task_id,
-    id
-  );
+    await db.prepare(`
+      UPDATE time_entries SET project_id=?, task_id=?, date=?, start_time=?, end_time=?,
+        duration_minutes=?, work_type=?, description=?, source=?, status=?,
+        related_commit_ids=?, related_clickup_task_id=?, updated_at=datetime('now')
+      WHERE id=?
+    `).run(
+      project_id || entry.project_id,
+      task_id !== undefined ? task_id : entry.task_id,
+      newDate, newStart, newEnd, duration,
+      work_type || entry.work_type,
+      description !== undefined ? description : entry.description,
+      source || entry.source,
+      status || entry.status,
+      related_commit_ids !== undefined ? related_commit_ids : entry.related_commit_ids,
+      related_clickup_task_id !== undefined ? related_clickup_task_id : entry.related_clickup_task_id,
+      id
+    );
 
-  res.json(db.prepare(`
-    SELECT te.*, u.full_name as user_name, p.project_name, t.task_name
-    FROM time_entries te JOIN users u ON te.user_id=u.id JOIN projects p ON te.project_id=p.id
-    LEFT JOIN tasks t ON te.task_id=t.id WHERE te.id=?
-  `).get(id));
+    res.json(await db.prepare(`
+      SELECT te.*, u.full_name as user_name, p.project_name, t.task_name
+      FROM time_entries te JOIN users u ON te.user_id=u.id JOIN projects p ON te.project_id=p.id
+      LEFT JOIN tasks t ON te.task_id=t.id WHERE te.id=?
+    `).get(id));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // DELETE entry
-router.delete('/:id', authenticate, (req, res) => {
-  const id = parseInt(req.params.id);
-  const entry = db.prepare('SELECT * FROM time_entries WHERE id = ?').get(id);
-  if (!entry) return res.status(404).json({ error: 'Entry not found' });
-  if (req.user.role === 'employee' && entry.user_id !== req.user.id) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  db.prepare('DELETE FROM time_entries WHERE id = ?').run(id);
-  res.json({ message: 'Deleted' });
+router.delete('/:id', authenticate, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const entry = await db.prepare('SELECT * FROM time_entries WHERE id = ?').get(id);
+    if (!entry) return res.status(404).json({ error: 'Entry not found' });
+    if (req.user.role === 'employee' && entry.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    await db.prepare('DELETE FROM time_entries WHERE id = ?').run(id);
+    res.json({ message: 'Deleted' });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ===== TIMER ROUTES =====
 
 // Start timer
-router.post('/timer/start', authenticate, (req, res) => {
-  const existing = db.prepare('SELECT * FROM active_timers WHERE user_id = ?').get(req.user.id);
-  if (existing) return res.status(409).json({ error: 'Timer already running' });
+router.post('/timer/start', authenticate, async (req, res) => {
+  try {
+    const existing = await db.prepare('SELECT * FROM active_timers WHERE user_id = ?').get(req.user.id);
+    if (existing) return res.status(409).json({ error: 'Timer already running' });
 
-  const { project_id, task_id, description } = req.body;
-  if (!project_id) return res.status(400).json({ error: 'project_id is required' });
+    const { project_id, task_id, description } = req.body;
+    if (!project_id) return res.status(400).json({ error: 'project_id is required' });
 
-  db.prepare(`
-    INSERT INTO active_timers (user_id, project_id, task_id, description)
-    VALUES (?, ?, ?, ?)
-  `).run(req.user.id, project_id, task_id || null, description || null);
+    await db.prepare(`
+      INSERT INTO active_timers (user_id, project_id, task_id, description)
+      VALUES (?, ?, ?, ?)
+    `).run(req.user.id, project_id, task_id || null, description || null);
 
-  res.json(db.prepare('SELECT * FROM active_timers WHERE user_id = ?').get(req.user.id));
+    res.json(await db.prepare('SELECT * FROM active_timers WHERE user_id = ?').get(req.user.id));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Stop timer
-router.post('/timer/stop', authenticate, (req, res) => {
-  const timer = db.prepare('SELECT * FROM active_timers WHERE user_id = ?').get(req.user.id);
-  if (!timer) return res.status(404).json({ error: 'No active timer' });
+router.post('/timer/stop', authenticate, async (req, res) => {
+  try {
+    const timer = await db.prepare('SELECT * FROM active_timers WHERE user_id = ?').get(req.user.id);
+    if (!timer) return res.status(404).json({ error: 'No active timer' });
 
-  const now = new Date();
-  const started = new Date(timer.started_at.replace(' ', 'T') + 'Z');
-  const totalMs = now - started;
-  const pausedMs = timer.paused_duration_minutes * 60 * 1000;
-  const activeMins = Math.max(1, Math.ceil((totalMs - pausedMs) / 60000));
+    const now = new Date();
+    const started = new Date(timer.started_at.replace(' ', 'T') + 'Z');
+    const totalMs = now - started;
+    const pausedMs = timer.paused_duration_minutes * 60 * 1000;
+    const activeMins = Math.max(1, Math.ceil((totalMs - pausedMs) / 60000));
 
-  // Local date (not UTC) so midnight in Israel gives correct date
-  const pad = n => String(n).padStart(2, '0');
-  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  const startStr = `${pad(started.getHours())}:${pad(started.getMinutes())}`;
-  const endStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const pad = n => String(n).padStart(2, '0');
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const startStr = `${pad(started.getHours())}:${pad(started.getMinutes())}`;
+    const endStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-  const { description, related_commit_ids, related_clickup_task_id, status } = req.body || {};
-  const entryStatus = (status === 'draft' || status === 'submitted') ? status : 'submitted';
+    const { description, related_commit_ids, related_clickup_task_id, status } = req.body || {};
+    const entryStatus = (status === 'draft' || status === 'submitted') ? status : 'submitted';
 
-  const result = db.prepare(`
-    INSERT INTO time_entries (user_id, project_id, task_id, date, start_time, end_time, duration_minutes, description, source, status, related_commit_ids, related_clickup_task_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'timer', ?, ?, ?)
-  `).run(
-    req.user.id, timer.project_id, timer.task_id, today, startStr, endStr, activeMins,
-    description || timer.description || null, entryStatus,
-    related_commit_ids || null, related_clickup_task_id || null
-  );
+    const result = await db.prepare(`
+      INSERT INTO time_entries (user_id, project_id, task_id, date, start_time, end_time, duration_minutes, description, source, status, related_commit_ids, related_clickup_task_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'timer', ?, ?, ?)
+    `).run(
+      req.user.id, timer.project_id, timer.task_id, today, startStr, endStr, activeMins,
+      description || timer.description || null, entryStatus,
+      related_commit_ids || null, related_clickup_task_id || null
+    );
 
-  db.prepare('DELETE FROM active_timers WHERE user_id = ?').run(req.user.id);
+    await db.prepare('DELETE FROM active_timers WHERE user_id = ?').run(req.user.id);
 
-  const entry = db.prepare(`
-    SELECT te.*, u.full_name as user_name, p.project_name, t.task_name
-    FROM time_entries te JOIN users u ON te.user_id=u.id JOIN projects p ON te.project_id=p.id
-    LEFT JOIN tasks t ON te.task_id=t.id WHERE te.id=?
-  `).get(Number(result.lastInsertRowid));
+    const entry = await db.prepare(`
+      SELECT te.*, u.full_name as user_name, p.project_name, t.task_name
+      FROM time_entries te JOIN users u ON te.user_id=u.id JOIN projects p ON te.project_id=p.id
+      LEFT JOIN tasks t ON te.task_id=t.id WHERE te.id=?
+    `).get(Number(result.lastInsertRowid));
 
-  res.json({ entry, duration_minutes: activeMins });
+    res.json({ entry, duration_minutes: activeMins });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Pause timer
-router.post('/timer/pause', authenticate, (req, res) => {
-  const timer = db.prepare('SELECT * FROM active_timers WHERE user_id = ?').get(req.user.id);
-  if (!timer) return res.status(404).json({ error: 'No active timer' });
-  if (timer.paused_at) return res.status(409).json({ error: 'Timer already paused' });
+router.post('/timer/pause', authenticate, async (req, res) => {
+  try {
+    const timer = await db.prepare('SELECT * FROM active_timers WHERE user_id = ?').get(req.user.id);
+    if (!timer) return res.status(404).json({ error: 'No active timer' });
+    if (timer.paused_at) return res.status(409).json({ error: 'Timer already paused' });
 
-  db.prepare("UPDATE active_timers SET paused_at=datetime('now') WHERE user_id=?").run(req.user.id);
-  res.json({ message: 'Timer paused' });
+    await db.prepare("UPDATE active_timers SET paused_at=datetime('now') WHERE user_id=?").run(req.user.id);
+    res.json({ message: 'Timer paused' });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Resume timer
-router.post('/timer/resume', authenticate, (req, res) => {
-  const timer = db.prepare('SELECT * FROM active_timers WHERE user_id = ?').get(req.user.id);
-  if (!timer) return res.status(404).json({ error: 'No active timer' });
-  if (!timer.paused_at) return res.status(409).json({ error: 'Timer not paused' });
+router.post('/timer/resume', authenticate, async (req, res) => {
+  try {
+    const timer = await db.prepare('SELECT * FROM active_timers WHERE user_id = ?').get(req.user.id);
+    if (!timer) return res.status(404).json({ error: 'No active timer' });
+    if (!timer.paused_at) return res.status(409).json({ error: 'Timer not paused' });
 
-  const pausedAt = new Date(timer.paused_at.replace(' ', 'T') + 'Z');
-  const addedMins = Math.round((new Date() - pausedAt) / 60000);
+    const pausedAt = new Date(timer.paused_at.replace(' ', 'T') + 'Z');
+    const addedMins = Math.round((new Date() - pausedAt) / 60000);
 
-  db.prepare('UPDATE active_timers SET paused_duration_minutes=?, paused_at=NULL WHERE user_id=?')
-    .run(timer.paused_duration_minutes + addedMins, req.user.id);
+    await db.prepare('UPDATE active_timers SET paused_duration_minutes=?, paused_at=NULL WHERE user_id=?')
+      .run(timer.paused_duration_minutes + addedMins, req.user.id);
 
-  res.json({ message: 'Timer resumed' });
+    res.json({ message: 'Timer resumed' });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Get active timer
-router.get('/timer/active', authenticate, (req, res) => {
-  const timer = db.prepare(`
-    SELECT at.*, p.project_name, t.task_name
-    FROM active_timers at
-    JOIN projects p ON at.project_id = p.id
-    LEFT JOIN tasks t ON at.task_id = t.id
-    WHERE at.user_id = ?
-  `).get(req.user.id);
-  res.json(timer || null);
+router.get('/timer/active', authenticate, async (req, res) => {
+  try {
+    const timer = await db.prepare(`
+      SELECT at.*, p.project_name, t.task_name
+      FROM active_timers at
+      JOIN projects p ON at.project_id = p.id
+      LEFT JOIN tasks t ON at.task_id = t.id
+      WHERE at.user_id = ?
+    `).get(req.user.id);
+    res.json(timer || null);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Discard timer
-router.delete('/timer/active', authenticate, (req, res) => {
-  db.prepare('DELETE FROM active_timers WHERE user_id = ?').run(req.user.id);
-  res.json({ message: 'Timer discarded' });
+router.delete('/timer/active', authenticate, async (req, res) => {
+  try {
+    await db.prepare('DELETE FROM active_timers WHERE user_id = ?').run(req.user.id);
+    res.json({ message: 'Timer discarded' });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // All active timers — manager/admin Live Team Pulse
-router.get('/timer/all', authenticate, requireRole('manager', 'admin'), (req, res) => {
-  const timers = db.prepare(`
-    SELECT at.*, u.full_name, p.project_name, t.task_name
-    FROM active_timers at
-    JOIN users u ON at.user_id = u.id
-    JOIN projects p ON at.project_id = p.id
-    LEFT JOIN tasks t ON at.task_id = t.id
-    ORDER BY at.started_at ASC
-  `).all();
-  res.json(timers);
+router.get('/timer/all', authenticate, requireRole('manager', 'admin'), async (req, res) => {
+  try {
+    const timers = await db.prepare(`
+      SELECT at.*, u.full_name, p.project_name, t.task_name
+      FROM active_timers at
+      JOIN users u ON at.user_id = u.id
+      JOIN projects p ON at.project_id = p.id
+      LEFT JOIN tasks t ON at.task_id = t.id
+      ORDER BY at.started_at ASC
+    `).all();
+    res.json(timers);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 module.exports = router;
