@@ -284,4 +284,17 @@ router.delete('/timer/active', authenticate, (req, res) => {
   res.json({ message: 'Timer discarded' });
 });
 
+// All active timers — manager/admin Live Team Pulse
+router.get('/timer/all', authenticate, requireRole('manager', 'admin'), (req, res) => {
+  const timers = db.prepare(`
+    SELECT at.*, u.full_name, p.project_name, t.task_name
+    FROM active_timers at
+    JOIN users u ON at.user_id = u.id
+    JOIN projects p ON at.project_id = p.id
+    LEFT JOIN tasks t ON at.task_id = t.id
+    ORDER BY at.started_at ASC
+  `).all();
+  res.json(timers);
+});
+
 module.exports = router;
