@@ -6,7 +6,8 @@
     "dev": "nodemon --experimental-sqlite src/index.js",
     "start": "node src/index.js",
     "start:local": "node --experimental-sqlite src/index.js",
-    "seed": "node --experimental-sqlite src/database/seed.js"
+    "seed": "node --experimental-sqlite src/database/seed.js",
+    "seed:prod": "node src/database/seed.js"
   },
   "engines": {
     "node": ">=18.0.0"

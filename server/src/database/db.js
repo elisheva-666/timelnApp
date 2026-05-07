@@ -35,11 +35,19 @@ if (USE_PG) {
    */
   function toPg(sql) {
     let n = 0;
-    return sql
+    const isInsertOrIgnore = /\bINSERT\s+OR\s+IGNORE\b/i.test(sql);
+    let out = sql
       .replace(/\?/g, () => `$${++n}`)
-      .replace(/datetime\('now'\)/gi, 'NOW()')
+      // datetime('now') → text matching SQLite's '2025-01-01 12:00:00' format
+      .replace(/datetime\('now'\)/gi, "to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')")
       .replace(/INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT/gi, 'SERIAL PRIMARY KEY')
-      .replace(/\bAUTOINCREMENT\b/gi, '');
+      .replace(/\bAUTOINCREMENT\b/gi, '')
+      .replace(/\bINSERT\s+OR\s+IGNORE\s+INTO\b/gi, 'INSERT INTO');
+    // Append ON CONFLICT DO NOTHING for originally-ignored inserts
+    if (isInsertOrIgnore && !/ON\s+CONFLICT/i.test(out)) {
+      out = out.trimEnd().replace(/;?\s*$/, '') + ' ON CONFLICT DO NOTHING';
+    }
+    return out;
   }
 
   function prepare(sql) {
