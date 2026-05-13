@@ -22,6 +22,16 @@ router.post('/login', async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    };
+
+    res.cookie('jwt', token, cookieOptions);
+
     res.json({
       token,
       user: { id: user.id, full_name: user.full_name, email: user.email, role: user.role, team: user.team },

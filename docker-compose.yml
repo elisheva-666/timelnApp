@@ -1,0 +1,10 @@
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-ChangeMeRedis123!}"]
+    ports:
+      - '6379:6379'
+    restart: unless-stopped
+    environment:
+      - REDIS_PASSWORD=ChangeMeRedis123!
